@@ -412,7 +412,7 @@
   </div>
   <div class="action-row">
     <a class="btn btn-gold" href="absensi.html">Lihat Absensi &amp; Nilai (Realtime)</a>
-    <a class="btn btn-outline" href="https://drive.google.com/drive/folders/1iWzl6HhldFXlE2hzh167oYBzGrMPydd8" target="_blank">Lihat Jurnal Pembelajaran (Folder Drive)</a>
+    <span id="jurnalLinkWrap"><span class="btn btn-outline" style="opacity:.5;cursor:not-allowed;" title="Khusus admin">Jurnal Pembelajaran (Folder Drive) — khusus admin</span></span>
   </div>
 </section>
 
@@ -713,6 +713,32 @@
 
   refreshSkillVisibility();
   updateMateriLink();
+</script>
+
+<!-- Deteksi status admin (shared login dengan ruang-ujian.html / absensi.html) untuk buka link Jurnal -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyDDi8odiYL0h2xCsghfNr1EdGd8wXVfidY",
+    authDomain: "arabic-class-manbpn.firebaseapp.com",
+    projectId: "arabic-class-manbpn",
+    storageBucket: "arabic-class-manbpn.firebasestorage.app",
+    messagingSenderId: "82009627923",
+    appId: "1:82009627923:web:143877e1c45fcd861c4ee6"
+  };
+  try{
+    firebase.initializeApp(firebaseConfig);
+    firebase.auth().onAuthStateChanged(function(user){
+      const wrap = document.getElementById('jurnalLinkWrap');
+      if(!wrap) return;
+      if(user){
+        wrap.innerHTML = '<a class="btn btn-outline" href="https://drive.google.com/drive/folders/1iWzl6HhldFXlE2hzh167oYBzGrMPydd8" target="_blank">Lihat Jurnal Pembelajaran (Folder Drive)</a>';
+      }
+    });
+  }catch(e){ /* biarkan tampilan default (terkunci) kalau Firebase gagal dimuat */ }
+})();
 </script>
 
 </body>
