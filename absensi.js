@@ -332,6 +332,10 @@ async function hapusKelas(id, nama){
 function openSiswaModal(kelasId, kelasData){
   renderModal(`
     <h3>Kelola Siswa — ${escapeHtml(kelasData.nama)}</h3>
+    <div class="row" style="margin-bottom:10px;">
+      <button class="btn btn-outline btn-sm" id="mBersihkanData">Bersihkan Data Siswa</button>
+    </div>
+    <div id="mBersihBanner"></div>
     <div id="siswaListWrap"><div class="loading">Memuat…</div></div>
     <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;">
     <p class="hint">Tambah cepat: paste langsung dari Excel (kolom Nama + L/P), atau tulis 1 nama per baris (opsional akhiri dengan koma L/P, contoh: <i>Ahmad Fauzan, L</i>).</p>
@@ -344,7 +348,58 @@ Siti Aisyah, P"></textarea></div>
     </div>`);
   document.getElementById('mCancel').addEventListener('click', closeModal);
   document.getElementById('mSiswaTambahBulk').addEventListener('click', () => tambahSiswaBulk(kelasId));
+  document.getElementById('mBersihkanData').addEventListener('click', () => bersihkanDataSiswa(kelasId));
   loadSiswaList(kelasId);
+}
+
+async function bersihkanDataSiswa(kelasId){
+  const banner = document.getElementById('mBersihBanner');
+  const btn = document.getElementById('mBersihkanData');
+  btn.disabled = true; btn.textContent = 'Membersihkan…';
+  try{
+    const snap = await db.collection('siswa').where('kelasId','==',kelasId).get();
+    const batch = db.batch();
+    let jumlahDiperbaiki = 0;
+    const namaBersih = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      let nama = d.nama || '';
+      let jk = d.jk || '';
+      let berubah = false;
+      // pisahkan tab/spasi ganda + L/P yang nempel di akhir nama
+      const match = nama.match(/^(.*?)[\t]+([LP])$/) || nama.match(/^(.*?)\s+([LP])$/);
+      if(match && (!jk || jk==='')){
+        nama = match[1].trim();
+        jk = match[2];
+        berubah = true;
+      } else if(nama.includes('\t')){
+        nama = nama.replace(/\t+/g,' ').trim();
+        berubah = true;
+      }
+      if(berubah){
+        jumlahDiperbaiki++;
+        batch.update(db.collection('siswa').doc(doc.id), { nama, jk });
+      }
+      namaBersih.push(nama.toUpperCase());
+    });
+    if(jumlahDiperbaiki > 0) await batch.commit();
+
+    // deteksi duplikat (nama sama persis setelah dibersihkan)
+    const hitung = {};
+    namaBersih.forEach(n => { hitung[n] = (hitung[n]||0)+1; });
+    const duplikat = Object.keys(hitung).filter(n => hitung[n] > 1);
+
+    let msg = `${jumlahDiperbaiki} nama diperbaiki (tab dihapus, L/P dipisahkan).`;
+    if(duplikat.length){
+      msg += ` <br><b>Ditemukan nama duplikat, cek manual:</b> ${duplikat.map(escapeHtml).join(', ')}`;
+    }
+    bannerOk(banner, msg);
+    loadSiswaList(kelasId);
+  }catch(err){
+    bannerErr(banner, 'Gagal membersihkan: ' + escapeHtml(err.message));
+  }finally{
+    btn.disabled = false; btn.textContent = 'Bersihkan Data Siswa';
+  }
 }
 
 async function loadSiswaList(kelasId){
