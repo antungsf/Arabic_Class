@@ -60,7 +60,97 @@ async function bukaRekapPublik(kelasId, d){
   document.getElementById('rekapEyebrow').textContent = 'Kelas ' + d.jenjang;
   document.getElementById('rekapTitle').textContent = d.nama;
   showPublicView('viewRekapPublik');
-  await renderRekap(kelasId, document.getElementById('rekapTable'), false);
+  await renderRekapPublikCari(kelasId, document.getElementById('rekapTable'));
+}
+
+async function renderRekapPublikCari(kelasId, box){
+  box.innerHTML = '<div class="loading">Memuat data…</div>';
+  try{
+    const [siswaSnap, pertemuanSnap, nilaiSnap] = await Promise.all([
+      db.collection('siswa').where('kelasId','==',kelasId).orderBy('urutan').get(),
+      db.collection('pertemuan').where('kelasId','==',kelasId).get(),
+      db.collection('nilai').where('kelasId','==',kelasId).get()
+    ]);
+    if(siswaSnap.empty){ box.innerHTML = '<div class="empty">Belum ada siswa terdaftar di kelas ini.</div>'; return; }
+
+    const siswaList = [];
+    siswaSnap.forEach(doc => siswaList.push({id:doc.id, ...doc.data()}));
+
+    const rekapHadir = {};
+    siswaList.forEach(s => rekapHadir[s.id] = {H:0,S:0,I:0,A:0});
+    let jumlahPertemuan = 0;
+    pertemuanSnap.forEach(doc => {
+      jumlahPertemuan++;
+      const keh = doc.data().kehadiran || {};
+      siswaList.forEach(s => {
+        const st = keh[s.id] || 'H';
+        if(rekapHadir[s.id][st] !== undefined) rekapHadir[s.id][st]++;
+      });
+    });
+
+    const nilaiMap = {};
+    siswaList.forEach(s => nilaiMap[s.id] = {});
+    nilaiSnap.forEach(doc => {
+      const d2 = doc.data();
+      if(!nilaiMap[d2.siswaId]) nilaiMap[d2.siswaId] = {};
+      nilaiMap[d2.siswaId][d2.tp] = d2.nilai;
+    });
+
+    box.innerHTML = `
+      <p class="hint" style="margin-bottom:10px;">Untuk menjaga privasi, ketik namamu untuk melihat rekap kehadiran &amp; nilai milikmu sendiri.</p>
+      <div class="field" style="max-width:360px;"><label>Cari Nama Kamu</label><input type="text" id="cariNamaSiswa" placeholder="Ketik minimal 2 huruf…" autocomplete="off"></div>
+      <div id="hasilCariSiswa"></div>
+      <div id="hasilDataSiswa" style="margin-top:16px;"></div>`;
+
+    const inputCari = document.getElementById('cariNamaSiswa');
+    const hasilCari = document.getElementById('hasilCariSiswa');
+    const hasilData = document.getElementById('hasilDataSiswa');
+
+    inputCari.addEventListener('input', () => {
+      const q = inputCari.value.trim().toLowerCase();
+      hasilData.innerHTML = '';
+      if(q.length < 2){ hasilCari.innerHTML = ''; return; }
+      const cocok = siswaList.filter(s => s.nama.toLowerCase().includes(q)).slice(0,6);
+      if(!cocok.length){ hasilCari.innerHTML = '<div class="empty">Nama tidak ditemukan.</div>'; return; }
+      hasilCari.innerHTML = cocok.map(s => `<div class="list-item" data-id="${s.id}" style="cursor:pointer;padding:10px 14px;">${escapeHtml(s.nama)}</div>`).join('');
+      hasilCari.querySelectorAll('[data-id]').forEach(el => {
+        el.addEventListener('click', () => {
+          const s = siswaList.find(x => x.id === el.dataset.id);
+          tampilkanDataSendiri(s, rekapHadir[s.id], nilaiMap[s.id]||{}, jumlahPertemuan, hasilData);
+          hasilCari.innerHTML = '';
+          inputCari.value = s.nama;
+        });
+      });
+    });
+
+    function tampilkanDataSendiri(s, r, nilaiSiswa, jumlahPertemuan, target){
+      const pct = jumlahPertemuan ? Math.round((r.H/jumlahPertemuan)*100) : 0;
+      let total=0, count=0;
+      let tpHtml = '';
+      TP_LIST.forEach(tp => {
+        const v = nilaiSiswa[tp];
+        tpHtml += `<div class="list-item" style="text-align:center;padding:10px 4px;margin:0;"><div class="hint" style="margin:0;">${tp}</div><b>${v!==undefined && v!==null ? v : '-'}</b></div>`;
+        if(v!==undefined && v!==null){ total+=Number(v); count++; }
+      });
+      const rataRata = count ? Math.round(total/count) : '-';
+      target.innerHTML = `
+        <div class="list-item">
+          <h4 style="font-size:16px;">${escapeHtml(s.nama)}</h4>
+          <div class="row" style="margin:10px 0;">
+            <div class="list-item" style="margin:0;padding:10px 14px;"><div class="hint" style="margin:0;">Hadir</div><b>${r.H}/${jumlahPertemuan}</b></div>
+            <div class="list-item" style="margin:0;padding:10px 14px;"><div class="hint" style="margin:0;">% Hadir</div><b>${pct}%</b></div>
+            <div class="list-item" style="margin:0;padding:10px 14px;"><div class="hint" style="margin:0;">S</div><b>${r.S}</b></div>
+            <div class="list-item" style="margin:0;padding:10px 14px;"><div class="hint" style="margin:0;">I</div><b>${r.I}</b></div>
+            <div class="list-item" style="margin:0;padding:10px 14px;"><div class="hint" style="margin:0;">A</div><b>${r.A}</b></div>
+          </div>
+          <div class="hint" style="margin-bottom:6px;">Nilai Asesmen Formatif</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">${tpHtml}</div>
+          <div class="list-item" style="margin-top:10px;padding:10px 14px;background:var(--bg-alt);"><div class="hint" style="margin:0;">Rata-rata</div><b style="font-size:18px;">${rataRata}</b></div>
+        </div>`;
+    }
+  }catch(err){
+    box.innerHTML = `<div class="empty">Gagal memuat. ${escapeHtml(err.message)}</div>`;
+  }
 }
 
 async function renderRekap(kelasId, box, isAdmin){
@@ -509,14 +599,16 @@ async function tambahSiswaBulk(kelasId){
 async function loadKelasSelects(){
   try{
     const snap = await db.collection('kelas_absensi').orderBy('jenjang').orderBy('urutan').get();
-    const opts = ['<option value="">— pilih kelas —</option>'];
+    const optsBody = [];
     snap.forEach(doc => {
       const d = doc.data();
-      opts.push(`<option value="${doc.id}">${escapeHtml(d.jenjang)} · ${escapeHtml(d.nama)}</option>`);
+      optsBody.push(`<option value="${doc.id}">${escapeHtml(d.jenjang)} · ${escapeHtml(d.nama)}</option>`);
     });
     ['selectKelasAbsen','selectKelasNilai','selectKelasRekap'].forEach(id => {
-      document.getElementById(id).innerHTML = opts.join('');
+      document.getElementById(id).innerHTML = '<option value="">— pilih kelas —</option>' + optsBody.join('');
     });
+    const jSel = document.getElementById('jKelasSumber');
+    if(jSel) jSel.innerHTML = '<option value="">— tanpa data absensi —</option>' + optsBody.join('');
   }catch(err){ /* silent */ }
 }
 
@@ -663,7 +755,52 @@ function tahunAjaranUntukBulan(bulanNum){
 }
 
 document.getElementById('jTanggal').valueAsDate = new Date();
-document.getElementById('jTanggal').addEventListener('change', muatEntriJurnalTanggal);
+document.getElementById('jTanggal').addEventListener('change', async () => {
+  await muatEntriJurnalTanggal();
+  if(document.getElementById('jKelasSumber').value) tarikDataAbsensiKeJurnal();
+});
+document.getElementById('jKelasSumber').addEventListener('change', tarikDataAbsensiKeJurnal);
+
+async function tarikDataAbsensiKeJurnal(){
+  const kelasId = document.getElementById('jKelasSumber').value;
+  const tanggal = document.getElementById('jTanggal').value;
+  const badge = document.getElementById('jOtomatisBadge');
+  const hint = document.getElementById('jKelasHint');
+  if(!kelasId){ badge.style.display = 'none'; hint.textContent = ''; return; }
+  if(!tanggal){ hint.textContent = 'Pilih tanggal dahulu.'; return; }
+  hint.textContent = 'Menarik data absensi…';
+  try{
+    const kelasDoc = await db.collection('kelas_absensi').doc(kelasId).get();
+    const kelasNama = kelasDoc.exists ? kelasDoc.data().nama : '';
+    const pertemuanDoc = await db.collection('pertemuan').doc(`${kelasId}_${tanggal}`).get();
+    if(!pertemuanDoc.exists){
+      hint.textContent = `Belum ada data Ambil Absensi untuk kelas ${kelasNama} pada tanggal ini.`;
+      badge.style.display = 'none';
+      return;
+    }
+    const pertemuan = pertemuanDoc.data();
+    const siswaSnap = await db.collection('siswa').where('kelasId','==',kelasId).orderBy('urutan').get();
+    const kehadiran = pertemuan.kehadiran || {};
+    const tidakHadir = [];
+    let s=0, i=0, a=0;
+    siswaSnap.forEach(doc => {
+      const st = kehadiran[doc.id] || 'H';
+      if(st === 'S'){ s++; tidakHadir.push(`${doc.data().nama} (S)`); }
+      else if(st === 'I'){ i++; tidakHadir.push(`${doc.data().nama} (I)`); }
+      else if(st === 'A'){ a++; tidakHadir.push(`${doc.data().nama} (A)`); }
+    });
+    document.getElementById('jTempat').value = kelasNama;
+    if(pertemuan.materi) document.getElementById('jMateri').value = pertemuan.materi;
+    document.getElementById('jSiswaTidakHadir').value = tidakHadir.join(', ');
+    document.getElementById('jS').value = s;
+    document.getElementById('jI').value = i;
+    document.getElementById('jA').value = a;
+    badge.style.display = 'inline';
+    hint.textContent = `Data ditarik dari Ambil Absensi kelas ${kelasNama} (${tanggal}).`;
+  }catch(err){
+    hint.textContent = 'Gagal menarik data: ' + err.message;
+  }
+}
 
 async function muatEntriJurnalTanggal(){
   const tanggal = document.getElementById('jTanggal').value;
@@ -681,6 +818,9 @@ async function muatEntriJurnalTanggal(){
     document.getElementById('jI').value = d.i ?? 0;
     document.getElementById('jA').value = d.a ?? 0;
     document.getElementById('jKeterangan').value = d.keterangan || '';
+    document.getElementById('jKelasSumber').value = d.kelasSumberId || '';
+    document.getElementById('jOtomatisBadge').style.display = d.kelasSumberId ? 'inline' : 'none';
+    document.getElementById('jKelasHint').textContent = '';
   }catch(err){ /* silent */ }
 }
 
@@ -699,7 +839,8 @@ document.getElementById('btnSimpanJurnal').addEventListener('click', async () =>
     s: Number(document.getElementById('jS').value) || 0,
     i: Number(document.getElementById('jI').value) || 0,
     a: Number(document.getElementById('jA').value) || 0,
-    keterangan: document.getElementById('jKeterangan').value.trim()
+    keterangan: document.getElementById('jKeterangan').value.trim(),
+    kelasSumberId: document.getElementById('jKelasSumber').value || null
   };
   try{
     await db.collection('jurnal_guru').doc(tanggal).set(payload, {merge:true});

@@ -125,7 +125,7 @@
     <span class="crumb" id="crumbKelasPublik">&larr; Pilih kelas lain</span>
     <span class="eyebrow" id="rekapEyebrow">Kelas</span>
     <h1 id="rekapTitle">Rekap Kehadiran &amp; Nilai</h1>
-    <p class="lead">Persentase kehadiran dan nilai asesmen formatif (TP1–TP8) tiap siswa.</p>
+    <p class="lead">Cari namamu untuk melihat rekap kehadiran dan nilai asesmen formatif (TP1–TP8) milikmu sendiri.</p>
     <div id="rekapTable"><div class="loading">Memuat data…</div></div>
   </div>
 </main>
@@ -225,10 +225,15 @@
           <div class="field" style="max-width:170px;"><label>Pukul</label><input type="text" id="jPukul" value="07:00 - 15:30"></div>
           <div class="field" style="max-width:170px;"><label>Kelas/Tempat</label><input type="text" id="jTempat" value="MANBPN"></div>
         </div>
+        <div class="field" style="max-width:280px;">
+          <label>Ambil data absensi dari kelas (opsional)</label>
+          <select id="jKelasSumber"><option value="">— tanpa data absensi —</option></select>
+          <p class="hint" id="jKelasHint" style="margin-top:6px;"></p>
+        </div>
         <div class="field"><label>1. Kegiatan Guru</label><textarea id="jKegiatan" placeholder="Contoh: Mengajar Bahasa Arab kelas XI A, materi Qawaid Bilangan (Adad)"></textarea></div>
         <div class="field"><label>2. No. KD / Materi Pelajaran</label><input type="text" id="jMateri" placeholder="Contoh: 3.4 / Qawaid Bilangan (Adad)"></div>
         <div class="field"><label>3. Indikator Kompetensi</label><textarea id="jIndikator" placeholder="Contoh: Siswa mampu menggunakan bilangan 1-100 dalam kalimat sederhana"></textarea></div>
-        <div class="field"><label>Nama Siswa Tidak Hadir</label><input type="text" id="jSiswaTidakHadir" placeholder="Contoh: Ahmad Fauzan (I), Siti Aisyah (S)"></div>
+        <div class="field"><label>Nama Siswa Tidak Hadir <span class="hint" id="jOtomatisBadge" style="display:none;">(otomatis dari Ambil Absensi)</span></label><input type="text" id="jSiswaTidakHadir" placeholder="Contoh: Ahmad Fauzan (I), Siti Aisyah (S)"></div>
         <div class="row">
           <div class="field" style="max-width:100px;"><label>S</label><input type="number" id="jS" value="0" min="0"></div>
           <div class="field" style="max-width:100px;"><label>I</label><input type="number" id="jI" value="0" min="0"></div>
