@@ -16,7 +16,8 @@ const state = {
   editKelasId: null,
   adminKelasCache: [],
   siswaCacheByKelas: {},
-  lastRekap: null
+  lastRekap: null,
+  lastJurnal: null
 };
 
 function bannerOk(el, msg){ el.innerHTML = `<div class="banner banner-ok">${msg}</div>`; }
@@ -198,6 +199,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById('adminWhoami').textContent = user.email;
     loadKelasAdmin();
     loadKelasSelects();
+    muatEntriJurnalTanggal();
   } else {
     document.getElementById('viewLogin').classList.remove('hidden');
     document.getElementById('viewDashboard').classList.add('hidden');
@@ -218,9 +220,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['kelas','absen','nilai','rekap'].forEach(t => {
+    ['kelas','absen','nilai','rekap','jurnal'].forEach(t => {
       document.getElementById('tab'+capitalize(t)).classList.toggle('hidden', t !== btn.dataset.tab);
     });
+    if(btn.dataset.tab === 'jurnal') loadJurnalBulan();
   });
 });
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
@@ -652,7 +655,117 @@ document.getElementById('selectKelasRekap').addEventListener('change', (e) => {
   }
 });
 
-/* ---------------- helpers ---------------- */
+/* ---------------- ADMIN: Jurnal Guru ---------------- */
+const BULAN_NAMA = {1:'JANUARI',2:'FEBRUARI',3:'MARET',4:'APRIL',5:'MEI',6:'JUNI',7:'JULI',8:'AGUSTUS',9:'SEPTEMBER',10:'OKTOBER',11:'NOVEMBER',12:'DESEMBER'};
+function tahunAjaranUntukBulan(bulanNum){
+  // Semester Ganjil: Juli-Desember 2026, Semester Genap: Januari-Juni 2027
+  return bulanNum >= 7 ? 2026 : 2027;
+}
+
+document.getElementById('jTanggal').valueAsDate = new Date();
+document.getElementById('jTanggal').addEventListener('change', muatEntriJurnalTanggal);
+
+async function muatEntriJurnalTanggal(){
+  const tanggal = document.getElementById('jTanggal').value;
+  if(!tanggal) return;
+  try{
+    const doc = await db.collection('jurnal_guru').doc(tanggal).get();
+    const d = doc.exists ? doc.data() : {};
+    document.getElementById('jPukul').value = d.pukul || '07:00 - 15:30';
+    document.getElementById('jTempat').value = d.tempat || 'MANBPN';
+    document.getElementById('jKegiatan').value = d.kegiatan || '';
+    document.getElementById('jMateri').value = d.materi || '';
+    document.getElementById('jIndikator').value = d.indikator || '';
+    document.getElementById('jSiswaTidakHadir').value = d.siswaTidakHadir || '';
+    document.getElementById('jS').value = d.s ?? 0;
+    document.getElementById('jI').value = d.i ?? 0;
+    document.getElementById('jA').value = d.a ?? 0;
+    document.getElementById('jKeterangan').value = d.keterangan || '';
+  }catch(err){ /* silent */ }
+}
+
+document.getElementById('btnSimpanJurnal').addEventListener('click', async () => {
+  const banner = document.getElementById('jBanner');
+  const tanggal = document.getElementById('jTanggal').value;
+  if(!tanggal){ bannerErr(banner, 'Pilih tanggal dahulu.'); return; }
+  const payload = {
+    tanggal,
+    pukul: document.getElementById('jPukul').value.trim(),
+    tempat: document.getElementById('jTempat').value.trim(),
+    kegiatan: document.getElementById('jKegiatan').value.trim(),
+    materi: document.getElementById('jMateri').value.trim(),
+    indikator: document.getElementById('jIndikator').value.trim(),
+    siswaTidakHadir: document.getElementById('jSiswaTidakHadir').value.trim(),
+    s: Number(document.getElementById('jS').value) || 0,
+    i: Number(document.getElementById('jI').value) || 0,
+    a: Number(document.getElementById('jA').value) || 0,
+    keterangan: document.getElementById('jKeterangan').value.trim()
+  };
+  try{
+    await db.collection('jurnal_guru').doc(tanggal).set(payload, {merge:true});
+    bannerOk(banner, 'Entri jurnal tersimpan.');
+    loadJurnalBulan();
+  }catch(err){
+    bannerErr(banner, 'Gagal menyimpan: ' + escapeHtml(err.message));
+  }
+});
+
+document.getElementById('selectBulanJurnal').addEventListener('change', loadJurnalBulan);
+
+function bulanDefaultSekarang(){
+  const m = new Date().getMonth()+1; // 1-12
+  return m;
+}
+document.getElementById('selectBulanJurnal').value = bulanDefaultSekarang();
+
+async function loadJurnalBulan(){
+  const box = document.getElementById('jurnalTable');
+  const bulanNum = Number(document.getElementById('selectBulanJurnal').value);
+  const tahun = tahunAjaranUntukBulan(bulanNum);
+  box.innerHTML = '<div class="loading">Memuat…</div>';
+  try{
+    const mm = String(bulanNum).padStart(2,'0');
+    const awal = `${tahun}-${mm}-01`;
+    const akhir = `${tahun}-${mm}-31`;
+    const snap = await db.collection('jurnal_guru')
+      .where('tanggal','>=',awal).where('tanggal','<=',akhir)
+      .orderBy('tanggal','asc').get();
+    if(snap.empty){ box.innerHTML = '<div class="empty">Belum ada entri jurnal bulan ini.</div>'; state.lastJurnal = null; return; }
+    const rows = [];
+    snap.forEach(doc => rows.push(doc.data()));
+    state.lastJurnal = { bulanNum, tahun, rows };
+
+    let html = '<div class="table-scroll"><table><thead><tr><th>Tgl</th><th>Pukul</th><th>Kelas/Tempat</th><th>Kegiatan Guru</th><th>No.KD/Materi</th><th>Indikator</th><th>Tdk Hadir</th><th>S</th><th>I</th><th>A</th><th>Keterangan</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      html += `<tr><td>${escapeHtml(r.tanggal)}</td><td>${escapeHtml(r.pukul||'')}</td><td>${escapeHtml(r.tempat||'')}</td><td>${escapeHtml(r.kegiatan||'')}</td><td>${escapeHtml(r.materi||'')}</td><td>${escapeHtml(r.indikator||'')}</td><td>${escapeHtml(r.siswaTidakHadir||'')}</td><td>${r.s||0}</td><td>${r.i||0}</td><td>${r.a||0}</td><td>${escapeHtml(r.keterangan||'')}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    box.innerHTML = html;
+  }catch(err){
+    box.innerHTML = `<div class="empty">Gagal memuat. ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+document.getElementById('btnDownloadJurnal').addEventListener('click', () => {
+  const j = state.lastJurnal;
+  if(!j || !j.rows.length){ alert('Belum ada data jurnal bulan ini untuk didownload.'); return; }
+  const header = ['HARI/TGL','PUKUL','KELAS/TEMPAT','1.KEGIATAN GURU','2.NO.KD/MATERI PELAJARAN','3.INDIKATOR KOMPETENSI','NAMA SISWA TIDAK HADIR','S','I','A','KETERANGAN/OUTPUT KEGIATAN'];
+  const rows = [
+    [`AGENDA DAN JURNAL KEGIATAN GURU`],
+    [`BULAN : ${BULAN_NAMA[j.bulanNum]} ${j.tahun}`],
+    header
+  ];
+  j.rows.forEach(r => {
+    rows.push([r.tanggal, r.pukul||'', r.tempat||'', r.kegiatan||'', r.materi||'', r.indikator||'', r.siswaTidakHadir||'', r.s||0, r.i||0, r.a||0, r.keterangan||'']);
+  });
+  const namaFile = `jurnal-guru-${BULAN_NAMA[j.bulanNum]}-${j.tahun}.xlsx`;
+  if(typeof XLSX === 'undefined'){ alert('Gagal memuat modul Excel, coba lagi saat koneksi internet stabil.'); return; }
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:11},{wch:14},{wch:12},{wch:28},{wch:22},{wch:26},{wch:22},{wch:5},{wch:5},{wch:5},{wch:26}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${BULAN_NAMA[j.bulanNum]} ${j.tahun}`.substring(0,31));
+  XLSX.writeFile(wb, namaFile);
+});
 function renderModal(inner){
   document.getElementById('modalRoot').innerHTML = `<div class="modal-bg" id="modalBg"><div class="modal-box">${inner}</div></div>`;
   document.getElementById('modalBg').addEventListener('click', (e) => { if(e.target.id === 'modalBg') closeModal(); });

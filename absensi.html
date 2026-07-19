@@ -163,6 +163,7 @@
       <button class="tab-btn" data-tab="absen">Ambil Absensi</button>
       <button class="tab-btn" data-tab="nilai">Input Nilai</button>
       <button class="tab-btn" data-tab="rekap">Rekap</button>
+      <button class="tab-btn" data-tab="jurnal">Jurnal Guru</button>
     </div>
 
     <!-- Tab: Kelas & Siswa -->
@@ -211,6 +212,45 @@
         <button class="btn btn-outline btn-sm" id="btnDownloadRekap" disabled>Download Excel</button>
       </div>
       <div id="rekapAdminTable" style="margin-top:16px;"><div class="empty">Pilih kelas untuk melihat rekap.</div></div>
+    </div>
+
+    <!-- Tab: Jurnal Guru -->
+    <div id="tabJurnal" class="hidden">
+      <p class="lead" style="margin:0 0 16px;">Agenda &amp; jurnal kegiatan guru harian — khusus admin, tidak tampil ke publik.</p>
+
+      <div class="list-item" style="margin-bottom:20px;">
+        <h4 style="margin-bottom:12px;">Tambah / Edit Entri Hari Ini</h4>
+        <div class="row">
+          <div class="field" style="max-width:170px;"><label>Tanggal</label><input type="date" id="jTanggal"></div>
+          <div class="field" style="max-width:170px;"><label>Pukul</label><input type="text" id="jPukul" value="07:00 - 15:30"></div>
+          <div class="field" style="max-width:170px;"><label>Kelas/Tempat</label><input type="text" id="jTempat" value="MANBPN"></div>
+        </div>
+        <div class="field"><label>1. Kegiatan Guru</label><textarea id="jKegiatan" placeholder="Contoh: Mengajar Bahasa Arab kelas XI A, materi Qawaid Bilangan (Adad)"></textarea></div>
+        <div class="field"><label>2. No. KD / Materi Pelajaran</label><input type="text" id="jMateri" placeholder="Contoh: 3.4 / Qawaid Bilangan (Adad)"></div>
+        <div class="field"><label>3. Indikator Kompetensi</label><textarea id="jIndikator" placeholder="Contoh: Siswa mampu menggunakan bilangan 1-100 dalam kalimat sederhana"></textarea></div>
+        <div class="field"><label>Nama Siswa Tidak Hadir</label><input type="text" id="jSiswaTidakHadir" placeholder="Contoh: Ahmad Fauzan (I), Siti Aisyah (S)"></div>
+        <div class="row">
+          <div class="field" style="max-width:100px;"><label>S</label><input type="number" id="jS" value="0" min="0"></div>
+          <div class="field" style="max-width:100px;"><label>I</label><input type="number" id="jI" value="0" min="0"></div>
+          <div class="field" style="max-width:100px;"><label>A</label><input type="number" id="jA" value="0" min="0"></div>
+        </div>
+        <div class="field"><label>Keterangan / Output Kegiatan</label><textarea id="jKeterangan" placeholder="Contoh: KBM lancar, siswa aktif berlatih dialog"></textarea></div>
+        <div id="jBanner"></div>
+        <button class="btn btn-solid" id="btnSimpanJurnal">Simpan Entri</button>
+      </div>
+
+      <div class="row-between">
+        <div class="field" style="max-width:220px;margin-bottom:0;"><label>Bulan</label>
+          <select id="selectBulanJurnal">
+            <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+            <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+            <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+            <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+          </select>
+        </div>
+        <button class="btn btn-outline btn-sm" id="btnDownloadJurnal">Download Excel</button>
+      </div>
+      <div id="jurnalTable" style="margin-top:16px;"><div class="loading">Memuat…</div></div>
     </div>
   </div>
 </main>
