@@ -18,7 +18,9 @@ const state = {
   siswaCacheByKelas: {},
   lastRekap: null,
   lastJurnal: null,
-  editJurnalId: null
+  editJurnalId: null,
+  pengaturanGuru: { namaGuru: '', nipGuru: '' },
+  pengaturanSekolah: { namaKamad: '', nipKamad: '', kota: '' }
 };
 
 function bannerOk(el, msg){ el.innerHTML = `<div class="banner banner-ok">${msg}</div>`; }
@@ -291,6 +293,7 @@ auth.onAuthStateChanged(user => {
     loadKelasAdmin();
     loadKelasSelects();
     kosongkanFormJurnal();
+    muatPengaturan(user.uid);
   } else {
     document.getElementById('viewLogin').classList.remove('hidden');
     document.getElementById('viewDashboard').classList.add('hidden');
@@ -311,7 +314,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['kelas','absen','nilai','rekap','jurnal'].forEach(t => {
+    ['kelas','absen','nilai','rekap','jurnal','pengaturan'].forEach(t => {
       document.getElementById('tab'+capitalize(t)).classList.toggle('hidden', t !== btn.dataset.tab);
     });
     if(btn.dataset.tab === 'jurnal') loadJurnalBulan();
@@ -748,12 +751,81 @@ document.getElementById('selectKelasRekap').addEventListener('change', (e) => {
   }
 });
 
+/* ---------------- ADMIN: Pengaturan (Nama & NIP Guru + Kepala Madrasah) ---------------- */
+async function muatPengaturan(uid){
+  try{
+    const guruDoc = await db.collection('pengaturan_guru').doc(uid).get();
+    if(guruDoc.exists){
+      state.pengaturanGuru = guruDoc.data();
+    } else {
+      // default awal (kompatibel dengan data yang sudah ada sebelumnya)
+      state.pengaturanGuru = { namaGuru: 'Antung Sobri Fattah, S.Ag.', nipGuru: 'NIP. 197402222003121002' };
+    }
+    document.getElementById('pgNamaGuru').value = state.pengaturanGuru.namaGuru || '';
+    document.getElementById('pgNipGuru').value = state.pengaturanGuru.nipGuru || '';
+
+    const sekolahDoc = await db.collection('pengaturan_sekolah').doc('default').get();
+    if(sekolahDoc.exists){
+      state.pengaturanSekolah = sekolahDoc.data();
+    } else {
+      state.pengaturanSekolah = { namaKamad: 'Roihanun, S.Pd., M.Pd.', nipKamad: 'NIP. 196812011992032001', kota: 'Balikpapan' };
+    }
+    document.getElementById('pgNamaKamad').value = state.pengaturanSekolah.namaKamad || '';
+    document.getElementById('pgNipKamad').value = state.pengaturanSekolah.nipKamad || '';
+    document.getElementById('pgKota').value = state.pengaturanSekolah.kota || '';
+  }catch(err){ /* biarkan default kalau gagal muat */ }
+}
+
+document.getElementById('btnSimpanPengaturanGuru').addEventListener('click', async () => {
+  const banner = document.getElementById('pgGuruBanner');
+  const namaGuru = document.getElementById('pgNamaGuru').value.trim();
+  const nipGuru = document.getElementById('pgNipGuru').value.trim();
+  if(!namaGuru){ bannerErr(banner, 'Nama guru wajib diisi.'); return; }
+  try{
+    const uid = auth.currentUser.uid;
+    await db.collection('pengaturan_guru').doc(uid).set({ namaGuru, nipGuru }, {merge:true});
+    state.pengaturanGuru = { namaGuru, nipGuru };
+    bannerOk(banner, 'Data guru tersimpan.');
+  }catch(err){
+    bannerErr(banner, 'Gagal menyimpan: ' + escapeHtml(err.message));
+  }
+});
+
+document.getElementById('btnSimpanPengaturanSekolah').addEventListener('click', async () => {
+  const banner = document.getElementById('pgSekolahBanner');
+  const namaKamad = document.getElementById('pgNamaKamad').value.trim();
+  const nipKamad = document.getElementById('pgNipKamad').value.trim();
+  const kota = document.getElementById('pgKota').value.trim();
+  if(!namaKamad){ bannerErr(banner, 'Nama Kepala Madrasah wajib diisi.'); return; }
+  try{
+    await db.collection('pengaturan_sekolah').doc('default').set({ namaKamad, nipKamad, kota }, {merge:true});
+    state.pengaturanSekolah = { namaKamad, nipKamad, kota };
+    bannerOk(banner, 'Data madrasah tersimpan.');
+  }catch(err){
+    bannerErr(banner, 'Gagal menyimpan: ' + escapeHtml(err.message));
+  }
+});
+
 /* ---------------- ADMIN: Jurnal Guru ---------------- */
 const BULAN_NAMA = {1:'JANUARI',2:'FEBRUARI',3:'MARET',4:'APRIL',5:'MEI',6:'JUNI',7:'JULI',8:'AGUSTUS',9:'SEPTEMBER',10:'OKTOBER',11:'NOVEMBER',12:'DESEMBER'};
-function tahunAjaranUntukBulan(bulanNum){
-  // Semester Ganjil: Juli-Desember 2026, Semester Genap: Januari-Juni 2027
-  return bulanNum >= 7 ? 2026 : 2027;
+const NAMA_HARI_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const NAMA_BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+function tanggalIndonesiaHariIni(kota){
+  const now = new Date();
+  return `${kota || 'Balikpapan'}, ${now.getDate()} ${NAMA_BULAN_ID[now.getMonth()]} ${now.getFullYear()}`;
 }
+
+// isi pilihan Tahun secara dinamis (tidak hardcode) — rentang wajar dari 2 tahun lalu s/d 3 tahun ke depan
+(function isiSelectTahunJurnal(){
+  const sel = document.getElementById('selectTahunJurnal');
+  const tahunSekarang = new Date().getFullYear();
+  let opsi = '';
+  for(let y = tahunSekarang - 2; y <= tahunSekarang + 3; y++){
+    opsi += `<option value="${y}" ${y===tahunSekarang?'selected':''}>${y}</option>`;
+  }
+  sel.innerHTML = opsi;
+})();
 
 document.getElementById('jTanggal').valueAsDate = new Date();
 document.getElementById('jTanggal').addEventListener('change', () => {
@@ -897,6 +969,7 @@ document.getElementById('btnSimpanJurnal').addEventListener('click', async () =>
 });
 
 document.getElementById('selectBulanJurnal').addEventListener('change', loadJurnalBulan);
+document.getElementById('selectTahunJurnal').addEventListener('change', loadJurnalBulan);
 
 function bulanDefaultSekarang(){
   const m = new Date().getMonth()+1; // 1-12
@@ -907,7 +980,7 @@ document.getElementById('selectBulanJurnal').value = bulanDefaultSekarang();
 async function loadJurnalBulan(){
   const box = document.getElementById('jurnalTable');
   const bulanNum = Number(document.getElementById('selectBulanJurnal').value);
-  const tahun = tahunAjaranUntukBulan(bulanNum);
+  const tahun = Number(document.getElementById('selectTahunJurnal').value);
   box.innerHTML = '<div class="loading">Memuat…</div>';
   try{
     const mm = String(bulanNum).padStart(2,'0');
@@ -941,6 +1014,9 @@ async function loadJurnalBulan(){
 document.getElementById('btnDownloadJurnal').addEventListener('click', () => {
   const j = state.lastJurnal;
   if(!j || !j.rows.length){ alert('Belum ada data jurnal bulan ini untuk didownload.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Gagal memuat modul Excel, coba lagi saat koneksi internet stabil.'); return; }
+
+  const orientasi = document.getElementById('selectOrientasiJurnal').value; // 'landscape' | 'portrait'
   const header = ['HARI/TGL','PUKUL','KELAS/TEMPAT','1.KEGIATAN GURU','2.NO.KD/MATERI PELAJARAN','3.INDIKATOR KOMPETENSI','NAMA SISWA TIDAK HADIR','S','I','A','KETERANGAN/OUTPUT KEGIATAN'];
   const rows = [
     [`AGENDA DAN JURNAL KEGIATAN GURU`],
@@ -950,13 +1026,32 @@ document.getElementById('btnDownloadJurnal').addEventListener('click', () => {
   j.rows.forEach(r => {
     rows.push([r.tanggal, r.pukul||'', r.tempat||'', r.kegiatan||'', r.materi||'', r.indikator||'', r.siswaTidakHadir||'', r.s||0, r.i||0, r.a||0, r.keterangan||'']);
   });
+
+  // baris kosong pemisah sebelum blok tanda tangan
+  rows.push([]);
+  rows.push([]);
+  // "Balikpapan, [tanggal cetak]" — rata kolom terakhir
+  rows.push(['', '', '', '', '', '', '', '', '', '', tanggalIndonesiaHariIni(state.pengaturanSekolah.kota)]);
+  rows.push([]);
+  rows.push(['Guru Mata Pelajaran,', '', '', '', '', '', '', '', '', '', 'Mengetahui,']);
+  rows.push(['', '', '', '', '', '', '', '', '', '', 'Kepala Madrasah']);
+  rows.push([]);
+  rows.push([]);
+  rows.push([]);
+  rows.push([state.pengaturanGuru.namaGuru || '', '', '', '', '', '', '', '', '', '', state.pengaturanSekolah.namaKamad || '']);
+  rows.push([state.pengaturanGuru.nipGuru || '', '', '', '', '', '', '', '', '', '', state.pengaturanSekolah.nipKamad || '']);
+
   const namaFile = `jurnal-guru-${BULAN_NAMA[j.bulanNum]}-${j.tahun}.xlsx`;
-  if(typeof XLSX === 'undefined'){ alert('Gagal memuat modul Excel, coba lagi saat koneksi internet stabil.'); return; }
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{wch:11},{wch:14},{wch:12},{wch:28},{wch:22},{wch:26},{wch:22},{wch:5},{wch:5},{wch:5},{wch:26}];
+
+  // pengaturan halaman: ukuran A4, orientasi sesuai pilihan, muat pas lebar 1 halaman
+  ws['!pageSetup'] = { paperSize: 9, orientation: orientasi, fitToWidth: 1, fitToHeight: 0, scale: 100 };
+  ws['!margins'] = { left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2 };
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `${BULAN_NAMA[j.bulanNum]} ${j.tahun}`.substring(0,31));
-  XLSX.writeFile(wb, namaFile);
+  XLSX.writeFile(wb, namaFile, {cellStyles:true});
 });
 function renderModal(inner){
   document.getElementById('modalRoot').innerHTML = `<div class="modal-bg" id="modalBg"><div class="modal-box">${inner}</div></div>`;
