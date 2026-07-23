@@ -115,29 +115,41 @@
   .survey-bar .st2{font-size:12px;font-weight:500;color:#b9c8c2;display:block;margin-top:2px;}
 
   .prayer-widget{
-    max-width:1180px;margin:12px auto 0;padding:18px 22px;
+    max-width:1180px;margin:12px auto 0;padding:20px 22px 18px;
     background:rgba(255,255,255,.06);border:1px solid rgba(234,182,40,.35);
-    border-radius:6px;
+    border-radius:10px;
   }
-  .prayer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-  .prayer-loc{display:flex;align-items:center;gap:8px;font-family:'Poppins',sans-serif;font-weight:700;font-size:13.5px;color:#fff;}
+  .prayer-clock-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+  .prayer-clock-block{text-align:left;}
+  .prayer-clock{font-family:'Poppins',sans-serif;font-weight:800;font-size:44px;color:#fff;line-height:1;letter-spacing:-.01em;}
+  .prayer-sub{font-size:12.5px;color:#b9c8c2;margin-top:6px;}
+  .prayer-loc-block{text-align:right;}
+  .prayer-loc{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-family:'Poppins',sans-serif;font-weight:700;font-size:13.5px;color:#fff;}
   .prayer-loc .picon{width:16px;height:16px;color:var(--gold);flex-shrink:0;}
-  .prayer-date{font-size:12px;color:#b9c8c2;}
-  .prayer-grid{display:flex;gap:10px;flex-wrap:wrap;}
-  .prayer-item{
-    flex:1 1 0;min-width:88px;text-align:center;background:rgba(0,0,0,.18);
-    border-radius:5px;padding:10px 6px;
+  .prayer-date{font-size:12px;color:#b9c8c2;margin-top:4px;}
+  .prayer-grid{
+    display:flex;gap:6px;flex-wrap:wrap;
+    background:rgba(255,255,255,.95);border-radius:999px;padding:6px;
   }
-  .prayer-item .pname{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#b9c8c2;margin-bottom:4px;}
-  .prayer-item .ptime{font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:var(--gold);}
-  .prayer-item.active{background:rgba(234,182,40,.18);}
-  .prayer-item.active .pname{color:#f2d98a;}
+  .prayer-item{
+    flex:1 1 0;min-width:70px;text-align:center;
+    border-radius:999px;padding:9px 6px;
+  }
+  .prayer-item .pname{font-size:10.5px;letter-spacing:.03em;color:var(--muted);margin-bottom:2px;}
+  .prayer-item .ptime{font-family:'Poppins',sans-serif;font-weight:700;font-size:14.5px;color:var(--green-deep);}
+  .prayer-item.active{background:var(--green-deep);}
+  .prayer-item.active .pname{color:#cfe3d8;}
+  .prayer-item.active .ptime{color:var(--gold);}
   .prayer-note{font-size:11.5px;color:#9fb2ab;margin-top:12px;}
   .prayer-note a{color:var(--gold);text-decoration:underline;}
   @media (max-width:700px){
-    .prayer-grid{gap:8px;}
-    .prayer-item{min-width:70px;padding:8px 4px;}
-    .prayer-item .ptime{font-size:14px;}
+    .prayer-clock-row{flex-direction:column;align-items:flex-start;gap:10px;}
+    .prayer-loc-block{text-align:left;}
+    .prayer-loc{justify-content:flex-start;}
+    .prayer-clock{font-size:36px;}
+    .prayer-grid{border-radius:16px;flex-wrap:wrap;}
+    .prayer-item{min-width:30%;}
+    .prayer-item .ptime{font-size:13px;}
   }
 
   /* ANNOUNCEMENT MODAL */
@@ -343,15 +355,23 @@
   </a>
 
   <div class="prayer-widget" id="prayerWidget">
-    <div class="prayer-head">
-      <div class="prayer-loc">
-        <svg class="picon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
-        <span id="prayerLocName">Memuat jadwal sholat...</span>
+    <div class="prayer-clock-row">
+      <div class="prayer-clock-block">
+        <div class="prayer-clock" id="liveClock">--:--</div>
+        <div class="prayer-sub">
+          <span id="prayerTerbit">Terbit &ndash; --:--</span>
+        </div>
       </div>
-      <div class="prayer-date" id="prayerDate"></div>
+      <div class="prayer-loc-block">
+        <div class="prayer-loc">
+          <svg class="picon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span id="prayerLocName">Memuat jadwal sholat...</span>
+        </div>
+        <div class="prayer-date" id="prayerDate"></div>
+      </div>
     </div>
     <div class="prayer-grid" id="prayerGrid"></div>
-    <div class="prayer-note">Jadwal mengikuti metode Kemenag RI. Sumber: <a href="https://aladhan.com/prayer-times-api" target="_blank" rel="noopener">Aladhan API</a>. Izinkan akses lokasi di browser untuk melihat jadwal sesuai posisi kamu.</div>
+    <div class="prayer-note">Jadwal mengikuti data Kemenag RI. Sumber: <a href="https://api.myquran.com/doc" target="_blank" rel="noopener">API MyQuran</a>.</div>
   </div>
 </section>
 
@@ -497,35 +517,53 @@
   active:false untuk menyembunyikan. Simpan file & upload ulang.
 ======================================================== -->
 <script>
-  const BALIKPAPAN = { lat: -1.2379, lon: 116.8529, name: "Balikpapan, Kalimantan Timur" };
   const PRAYER_LABELS = [
-    ["Fajr", "Subuh"], ["Dhuhr", "Dzuhur"], ["Asr", "Ashar"],
-    ["Maghrib", "Maghrib"], ["Isha", "Isya"]
+    ["subuh", "Subuh"], ["dzuhur", "Dzuhur"], ["ashar", "Ashar"],
+    ["maghrib", "Maghrib"], ["isya", "Isya"]
   ];
+  let currentJadwal = null;
 
-  function renderPrayerTimes(timings, locName) {
-    document.getElementById('prayerLocName').textContent = locName;
+  function updateActiveHighlight() {
+    if (!currentJadwal) return;
     const now = new Date();
-    document.getElementById('prayerDate').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     let activeIndex = -1;
     const minutesList = PRAYER_LABELS.map(([key]) => {
-      const [h, m] = timings[key].split(':').map(Number);
+      const [h, m] = currentJadwal[key].split(':').map(Number);
       return h * 60 + m;
     });
     for (let i = 0; i < minutesList.length; i++) {
       if (nowMinutes >= minutesList[i]) activeIndex = i;
     }
+    document.querySelectorAll('#prayerGrid .prayer-item').forEach((el, i) => {
+      el.classList.toggle('active', i === activeIndex);
+    });
+  }
+
+  function tickClock() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('liveClock').textContent = `${hh}:${mm}`;
+    updateActiveHighlight();
+  }
+
+  function renderPrayerTimes(jadwal, locName) {
+    currentJadwal = jadwal;
+    document.getElementById('prayerLocName').textContent = locName;
+    const now = new Date();
+    document.getElementById('prayerDate').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('prayerTerbit').textContent = `Terbit \u2013 ${jadwal.terbit || '--:--'}`;
 
     const grid = document.getElementById('prayerGrid');
     grid.innerHTML = '';
-    PRAYER_LABELS.forEach(([key, label], i) => {
+    PRAYER_LABELS.forEach(([key, label]) => {
       const div = document.createElement('div');
-      div.className = 'prayer-item' + (i === activeIndex ? ' active' : '');
-      div.innerHTML = `<div class="pname">${label}</div><div class="ptime">${timings[key]}</div>`;
+      div.className = 'prayer-item';
+      div.innerHTML = `<div class="pname">${label}</div><div class="ptime">${jadwal[key]}</div>`;
       grid.appendChild(div);
     });
+    updateActiveHighlight();
   }
 
   function showPrayerError() {
@@ -533,14 +571,28 @@
     document.getElementById('prayerGrid').innerHTML = '';
   }
 
-  async function fetchPrayerTimes(lat, lon, locName) {
+  const KOTA_ID_KEY = 'kotaIdBalikpapan_v1';
+
+  async function ambilIdKotaBalikpapan() {
+    const cached = sessionStorage.getItem(KOTA_ID_KEY);
+    if (cached) return cached;
+    const res = await fetch('https://api.myquran.com/v2/sholat/kota/cari/balikpapan');
+    const data = await res.json();
+    const kota = (data.data || []).find(k => /^KOTA BALIKPAPAN$/i.test(k.lokasi)) || data.data[0];
+    if (!kota) throw new Error('Kota tidak ditemukan');
+    sessionStorage.setItem(KOTA_ID_KEY, kota.id);
+    return kota.id;
+  }
+
+  async function fetchPrayerTimes() {
     try {
+      const id = await ambilIdKotaBalikpapan();
       const today = new Date();
-      const dateStr = String(today.getDate()).padStart(2,'0') + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + today.getFullYear();
-      const res = await fetch(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lon}&method=20`);
+      const url = `https://api.myquran.com/v2/sholat/jadwal/${id}/${today.getFullYear()}/${today.getMonth()+1}/${today.getDate()}`;
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.data && data.data.timings) {
-        renderPrayerTimes(data.data.timings, locName);
+      if (data.status && data.data && data.data.jadwal) {
+        renderPrayerTimes(data.data.jadwal, data.data.lokasi ? `Kota ${data.data.lokasi.replace(/^KOTA /i,'')}` : 'Kota Balikpapan');
       } else {
         showPrayerError();
       }
@@ -550,15 +602,9 @@
   }
 
   function initPrayerWidget() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => fetchPrayerTimes(pos.coords.latitude, pos.coords.longitude, 'Lokasi kamu saat ini'),
-        () => fetchPrayerTimes(BALIKPAPAN.lat, BALIKPAPAN.lon, BALIKPAPAN.name),
-        { timeout: 6000 }
-      );
-    } else {
-      fetchPrayerTimes(BALIKPAPAN.lat, BALIKPAPAN.lon, BALIKPAPAN.name);
-    }
+    tickClock();
+    setInterval(tickClock, 1000 * 15);
+    fetchPrayerTimes();
   }
 
   document.addEventListener('DOMContentLoaded', initPrayerWidget);
